@@ -1,0 +1,9 @@
+@import "tailwindcss";
+html {
+  @apply w-full h-full overflow-hidden;
+}
+html,
+body,
+#root {
+  @apply flex flex-1;
+}
