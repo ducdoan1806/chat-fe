@@ -14,7 +14,7 @@ import { setError } from "../utils/util";
 const ChatRoom = () => {
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState("");
-  const { emitEvent } = useWebSocket();
+  const { emitEvent, messages: socketMessages } = useWebSocket();
   const { user } = useUser();
   const { setRooms } = useRooms();
   const [loading, setLoading] = useState({ get: false, send: false });
@@ -52,11 +52,9 @@ const ChatRoom = () => {
       setMessages((prev) => [res, ...prev]);
       setRooms((prev) => {
         const updated = prev.map((room) => {
-          if (room.id === id) {
-            room = {
-              ...room,
-              last_message: res,
-            };
+          if (room.id === Number(id)) {
+            room.updated_at = new Date().toISOString();
+            room.last_message = res;
           }
           return room;
         });
@@ -72,7 +70,9 @@ const ChatRoom = () => {
   useEffect(() => {
     getMessages();
   }, [getMessages]);
-
+  useEffect(() => {
+    socketMessages && setMessages((prev) => [socketMessages, ...prev]);
+  }, [socketMessages]);
   useEffect(() => {
     if (!id || !user?.id) return;
     emitEvent("join_room", { roomId: id, userId: user?.id });
@@ -108,13 +108,13 @@ const ChatRoom = () => {
               <Spin />
             </div>
           )}
-          {messages.map((message) =>
-            message?.sender?.id === user?.id ? (
+          {messages.map((message) => {
+            return message?.sender?.id === user?.id ? (
               <MyMessage key={message?.id} message={message} />
             ) : (
               <PartnerMessage key={message?.id} message={message} />
-            )
-          )}
+            );
+          })}
         </div>
         <div className="p-2 flex items-start gap-1 shadow">
           <Input.TextArea
@@ -122,6 +122,14 @@ const ChatRoom = () => {
             placeholder="Type your message..."
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (messageInput.trim() !== "") {
+                  sendMessage();
+                }
+              }
+            }}
           />
           <Button
             icon={<IoSend />}
