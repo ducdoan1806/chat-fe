@@ -1,33 +1,33 @@
 import { createContext, useEffect, useRef, useState } from "react";
-
+import { io } from "socket.io-client";
 const WebSocketContext = createContext();
 
 export const WebSocketProvider = ({
-  url = "ws://127.0.0.1:8000/ws/chat/1/",
+  url = "http://127.0.0.1:5000",
   children,
 }) => {
   const [messages, setMessages] = useState([]);
   const socketRef = useRef(null);
 
   useEffect(() => {
-    const ws = new WebSocket(url);
-    socketRef.current = ws;
+    // Tạo kết nối Socket.IO
+    const socket = io(url);
+    socketRef.current = socket;
+    socket.on("connect", () => console.log("✅ Connected:", url));
+    socket.on("message", (msg) => setMessages((prev) => [...prev, msg]));
+    socket.on("disconnect", () => console.log("❌ Disconnected"));
 
-    ws.onopen = () => console.log("✅ Connected:", url);
-    ws.onmessage = (event) => setMessages((prev) => [...prev, event.data]);
-    ws.onclose = () => console.log("❌ Disconnected");
-
-    return () => ws.close();
+    return () => socket.disconnect();
   }, [url]);
 
-  const sendMessage = (msg) => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(msg);
+  const emitEvent = (type, msg) => {
+    if (socketRef.current?.connected) {
+      socketRef.current.emit(type, msg);
     }
   };
 
   return (
-    <WebSocketContext.Provider value={{ messages, sendMessage }}>
+    <WebSocketContext.Provider value={{ messages, emitEvent }}>
       {children}
     </WebSocketContext.Provider>
   );

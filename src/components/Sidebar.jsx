@@ -34,7 +34,9 @@ const Sidebar = () => {
               <Skeleton active />
             </div>
           ) : (
-            rooms.map((room) => <RoomItem key={room.id} room={room} />)
+            rooms
+              .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+              .map((room) => <RoomItem key={room.id} room={room} />)
           )}
           {rooms.length === 0 && (
             <div className="p-2">
