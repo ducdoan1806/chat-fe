@@ -14,7 +14,11 @@ import { setError } from "../utils/util";
 const ChatRoom = () => {
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState("");
-  const { emitEvent, messages: socketMessages } = useWebSocket();
+  const {
+    emitEvent,
+    messages: socketMessages,
+    setMessages: setSocketMessages,
+  } = useWebSocket();
   const { user } = useUser();
   const { setRooms } = useRooms();
   const [loading, setLoading] = useState({ get: false, send: false });
@@ -24,7 +28,8 @@ const ChatRoom = () => {
     try {
       await api.get(`/api/conversations/${id}/`);
       const res = await api.get(`/api/messages/?conversation=${id}`);
-
+      setSocketMessages(null);
+      setMessages(res?.results || []);
       setRooms((prev) => {
         const updated = prev.map((room) => {
           if (room.id === Number(id)) {
@@ -34,13 +39,12 @@ const ChatRoom = () => {
         });
         return updated;
       });
-      setMessages(res.results.map((item) => ({ ...item, read: true })));
     } catch (error) {
       console.log("error: ", error);
     } finally {
       setLoading((prev) => ({ ...prev, get: false }));
     }
-  }, [id, setRooms]);
+  }, [id, setRooms, setSocketMessages]);
   const sendMessage = async () => {
     setLoading((prev) => ({ ...prev, send: true }));
     try {
@@ -71,8 +75,21 @@ const ChatRoom = () => {
     getMessages();
   }, [getMessages]);
   useEffect(() => {
-    socketMessages && setMessages((prev) => [socketMessages, ...prev]);
-  }, [socketMessages]);
+    if (socketMessages) {
+      setMessages((prev) => [socketMessages, ...prev]);
+      setRooms((prev) => {
+        const updated = prev.map((room) => {
+          if (room.id === Number(id)) {
+            room.updated_at = new Date().toISOString();
+            room.last_message = socketMessages;
+            room.new_message_count += 1;
+          }
+          return room;
+        });
+        return updated;
+      });
+    }
+  }, [socketMessages, id, setRooms]);
   useEffect(() => {
     if (!id || !user?.id) return;
     emitEvent("join_room", { roomId: id, userId: user?.id });

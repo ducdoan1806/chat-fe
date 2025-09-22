@@ -30,7 +30,7 @@ export const WebSocketProvider = ({
   };
 
   return (
-    <WebSocketContext.Provider value={{ messages, emitEvent }}>
+    <WebSocketContext.Provider value={{ messages, emitEvent, setMessages }}>
       {children}
     </WebSocketContext.Provider>
   );
